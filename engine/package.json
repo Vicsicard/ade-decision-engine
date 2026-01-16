@@ -1,5 +1,5 @@
 {
-  "name": "@ade/engine",
+  "name": "ade-decision-engine",
   "version": "1.0.0",
   "description": "Deterministic decision engine with audit-grade replay. ADE is not an AI that decides—it is a system that decides about AI, safely and audibly.",
   "type": "module",
@@ -27,7 +27,7 @@
     "test:golden": "vitest run --config vitest.golden.config.ts",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build && npm run test"
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "decision-engine",

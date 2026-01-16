@@ -33,6 +33,12 @@ export interface MemoryStore {
    * Check if memory exists
    */
   exists(platform_id: string, user_id: string): Promise<boolean>;
+
+  /**
+   * Get all memory data for a user as a flat record.
+   * Used for creating memory snapshots for V2 learning.
+   */
+  getAll(user_id: string): Promise<Record<string, unknown>>;
 }
 
 /**

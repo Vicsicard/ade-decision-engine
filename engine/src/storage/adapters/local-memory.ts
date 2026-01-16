@@ -32,6 +32,31 @@ export class LocalMemoryStore implements MemoryStore {
     const key = buildMemoryKey(platform_id, user_id);
     return this.entries.has(key);
   }
+
+  async getAll(user_id: string): Promise<Record<string, unknown>> {
+    const result: Record<string, unknown> = {};
+    
+    // Find all entries for this user across all platforms
+    for (const [key, entry] of this.entries) {
+      if (key.includes(`:${user_id}`)) {
+        // Flatten the memory entry into the result
+        // MemoryEntry has: schema_version, scenario_id, last_updated, interaction_history, custom_memory
+        result[`${key}.schema_version`] = entry.schema_version;
+        result[`${key}.scenario_id`] = entry.scenario_id;
+        result[`${key}.last_updated`] = entry.last_updated;
+        result[`${key}.interaction_history`] = entry.interaction_history;
+        
+        // Flatten custom_memory
+        if (entry.custom_memory) {
+          for (const [k, v] of Object.entries(entry.custom_memory)) {
+            result[`custom_memory.${k}`] = v;
+          }
+        }
+      }
+    }
+    
+    return result;
+  }
   
   /**
    * Clear all entries (for testing)
