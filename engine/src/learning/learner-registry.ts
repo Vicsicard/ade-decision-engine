@@ -6,7 +6,7 @@
  */
 
 import type { Learner, LearnerInput, LearnerResult } from './learner-interface.js';
-import { validateLearnerResult } from './learner-interface.js';
+import { validateLearnerResult, validateLearnerInput } from './learner-interface.js';
 
 /**
  * Result of processing a learner
@@ -68,8 +68,19 @@ export class LearnerRegistry {
   /**
    * Process input through all registered learners.
    * Each learner runs independently; failures are isolated.
+   * 
+   * HARD GUARD: Input must contain finalized audit data.
+   * This enforces the temporal boundary: learners CANNOT execute before audit commit.
    */
   async processAll(input: LearnerInput): Promise<LearnerExecutionResult[]> {
+    // Validate input contains required audit artifacts
+    const inputValidation = validateLearnerInput(input);
+    if (!inputValidation.valid) {
+      throw new Error(
+        `Learner execution blocked: ${inputValidation.errors.join('; ')}`
+      );
+    }
+
     const results: LearnerExecutionResult[] = [];
 
     for (const learner of this.learners.values()) {

@@ -17,6 +17,7 @@ export type {
 
 export {
   isValidLearnerNamespace,
+  validateLearnerInput,
   validateLearnerResult,
 } from './learner-interface.js';
 

@@ -15,6 +15,7 @@
 | **Learner** | A post-decision processor that writes derived evidence to memory |
 | **Memory Snapshot** | A point-in-time, immutable copy of user memory used for replay |
 | **Signal** | An optional input value that may influence scoring but cannot force outcomes |
+| **LearnerInput** | A read-only view of audit data. Runtime immutability is enforced at the audit store boundary, not the object reference level. |
 
 ---
 

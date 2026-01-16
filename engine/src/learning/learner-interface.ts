@@ -182,8 +182,37 @@ export function isValidLearnerNamespace(namespace: string): boolean {
 }
 
 /**
- * Validates all memory updates from a learner result
+ * Validates that LearnerInput contains required audit artifacts.
+ * This is a hard guard: learners CANNOT execute without finalized audit data.
  */
+export function validateLearnerInput(input: LearnerInput): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  if (!input.decision_id) {
+    errors.push('decision_id is required: audit must be committed before learner execution');
+  }
+
+  if (!input.audit) {
+    errors.push('audit is required: learners can only process finalized decisions');
+  } else {
+    if (!input.audit.timestamp) {
+      errors.push('audit.timestamp is required: decision must be finalized');
+    }
+    if (!input.audit.final_decision) {
+      errors.push('audit.final_decision is required: selection must be locked');
+    }
+  }
+
+  if (!input.memory_snapshot_id) {
+    errors.push('memory_snapshot_id is required: replay determinism requires snapshot pinning');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
 export function validateLearnerResult(result: LearnerResult): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
