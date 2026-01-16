@@ -1,0 +1,65 @@
+{
+  "name": "@ade/engine",
+  "version": "1.0.0",
+  "description": "Deterministic decision engine with audit-grade replay. ADE is not an AI that decides—it is a system that decides about AI, safely and audibly.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./tests": {
+      "types": "./dist/tests/index.d.ts",
+      "import": "./dist/tests/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:golden": "vitest run --config vitest.golden.config.ts",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build && npm run test"
+  },
+  "keywords": [
+    "decision-engine",
+    "ade",
+    "deterministic",
+    "containment",
+    "audit",
+    "replay",
+    "governance",
+    "compliance",
+    "adaptive"
+  ],
+  "author": "ADE Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ade/engine.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ade/engine/issues"
+  },
+  "homepage": "https://github.com/ade/engine#readme",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0",
+    "eslint": "^8.55.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "sideEffects": false
+}

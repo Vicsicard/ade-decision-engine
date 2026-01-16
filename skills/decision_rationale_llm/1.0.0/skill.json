@@ -1,0 +1,147 @@
+{
+  "skill_id": "decision_rationale_llm",
+  "version": "1.0.0",
+  "type": "llm",
+  "description": "Generates personalized, context-aware rationale using LLM. Falls back to decision_rationale_template on failure.",
+  
+  "sec": {
+    "sec_version": "1.0.0",
+    
+    "input_schema": {
+      "$ref": "standard_input_envelope"
+    },
+    
+    "output_schema": {
+      "type": "object",
+      "required": ["payload", "metadata"],
+      "properties": {
+        "payload": {
+          "type": "object",
+          "required": ["rationale"],
+          "properties": {
+            "rationale": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 20
+            },
+            "display_title": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "encouragement": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "display_parameters": {
+              "type": "object",
+              "properties": {
+                "tone": { 
+                  "type": "string",
+                  "enum": ["supportive", "energetic", "calm", "motivational"]
+                },
+                "personalization_level": { 
+                  "type": "string",
+                  "enum": ["medium", "high"]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "metadata": {
+          "type": "object",
+          "required": ["skill_id", "skill_version", "generated_at"],
+          "properties": {
+            "skill_id": { "type": "string" },
+            "skill_version": { "type": "string" },
+            "generated_at": { "type": "string", "format": "date-time" },
+            "token_count": { "type": "integer" },
+            "generation_ms": { "type": "integer" },
+            "model_id": { "type": "string" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    
+    "invariants": {
+      "universal": ["INV-001", "INV-002", "INV-003", "INV-004", "INV-005", "INV-006"],
+      "skill_specific": [
+        {
+          "id": "LLM-001",
+          "description": "Rationale must be encouraging, not critical",
+          "check": "payload.rationale NOT MATCHES '(?i)(you failed|disappointing|poor|bad)'"
+        },
+        {
+          "id": "LLM-002",
+          "description": "Must not make promises about outcomes",
+          "check": "payload.rationale NOT CONTAINS_ANY ['guarantee', 'will definitely', 'proven to', 'always works']"
+        },
+        {
+          "id": "LLM-003",
+          "description": "Must not imply decision agency",
+          "check": "payload.rationale NOT MATCHES '(?i)(i decided|i chose|we chose for you|i selected|we picked)'"
+        }
+      ]
+    },
+    
+    "prohibitions": {
+      "universal": true,
+      "skill_specific": [
+        {
+          "id": "LLM-PROHIB-001",
+          "pattern": "(?i)(as an ai|as a language model|i cannot|i'm unable)",
+          "reason": "LLM self-reference not allowed"
+        },
+        {
+          "id": "LLM-PROHIB-002",
+          "pattern": "(?i)(click here|visit|http|www\\.)",
+          "reason": "External links not allowed"
+        }
+      ]
+    },
+    
+    "timeout": {
+      "default_ms": 300,
+      "hard_limit_ms": 500
+    },
+    
+    "fallback": {
+      "skill_id": "decision_rationale_template",
+      "skill_version": "1.0.0"
+    }
+  },
+  
+  "prompt_config": {
+    "system_prompt": "You are a helpful assistant that generates brief, encouraging rationale for user decisions. You explain WHY a particular action was selected for the user based on their current state. You NEVER recommend different actions, suggest alternatives, or mention scores/rankings. Keep responses under 100 words. Be warm but concise.",
+    
+    "user_prompt_template": "Generate a brief, encouraging rationale for why {action_name} was selected for a user with the following state:\n\n- Engagement: {engagement_description}\n- Recent activity: {recency_description}\n- Experience level: {depth_description}\n\nThe rationale should:\n1. Acknowledge their current state positively\n2. Explain why this action fits them right now\n3. Be encouraging without being pushy\n\nRespond with ONLY the rationale text, nothing else.",
+    
+    "max_tokens": 150,
+    "temperature": 0.7
+  },
+  
+  "state_descriptions": {
+    "engagement": {
+      "high": "highly engaged and consistent",
+      "medium": "moderately engaged",
+      "low": "getting back into the routine"
+    },
+    "recency": {
+      "recent": "recently active",
+      "moderate": "returning after a short break",
+      "distant": "coming back after some time away"
+    },
+    "depth": {
+      "new": "just getting started",
+      "developing": "building good habits",
+      "experienced": "experienced and committed"
+    }
+  },
+  
+  "implementation": {
+    "language": "typescript",
+    "entry_point": "execute",
+    "dependencies": ["llm-executor-interface"]
+  }
+}

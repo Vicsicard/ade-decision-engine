@@ -1,0 +1,295 @@
+{
+  "scenario_id": "fitness-daily-session",
+  "version": "1.0.0",
+  "metadata": {
+    "name": "Fitness Daily Session",
+    "description": "Decides which workout session a user should receive today based on fatigue, engagement, and training history",
+    "domain": "fitness",
+    "created_at": "2026-01-16T00:00:00Z",
+    "author": "ADE Team",
+    "tags": ["fitness", "workout", "daily", "adaptive"]
+  },
+  "state_schema": {
+    "core_dimensions": {
+      "engagement_level": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "computed",
+          "formula": "signals.sessions_completed_7d / max(memory.sessions_recommended_7d, 1)",
+          "inputs": ["signals.sessions_completed_7d", "memory.sessions_recommended_7d"]
+        },
+        "description": "7-day session completion rate"
+      },
+      "recency_score": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "computed",
+          "formula": "1.0 - min(signals.hours_since_last_session / 168, 1.0)",
+          "inputs": ["signals.hours_since_last_session"]
+        },
+        "description": "How recently user completed a session"
+      },
+      "interaction_depth": {
+        "type": "integer",
+        "range": { "min": 0 },
+        "default": 0,
+        "derivation": {
+          "source": "signal",
+          "formula": "signals.sessions_completed_total",
+          "inputs": ["signals.sessions_completed_total"]
+        },
+        "description": "Total sessions completed since signup"
+      },
+      "depth_factor": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 1.0,
+        "derivation": {
+          "source": "computed",
+          "formula": "if_else(interaction_depth < 5, 1.0, if_else(interaction_depth < 20, 0.5, 0.2))",
+          "inputs": ["interaction_depth"]
+        },
+        "description": "Normalized experience depth factor (higher = less experienced, higher churn risk)"
+      },
+      "churn_risk": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "computed",
+          "formula": "(1.0 - engagement_level) * 0.50 + (1.0 - recency_score) * 0.30 + depth_factor * 0.20",
+          "inputs": ["engagement_level", "recency_score", "depth_factor"]
+        },
+        "description": "Composite dropout likelihood"
+      }
+    },
+    "scenario_dimensions": {
+      "fatigue_score": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.0,
+        "derivation": {
+          "source": "computed",
+          "formula": "clamp((intensity_load - recovery_factor) / 5.0, 0.0, 1.0)",
+          "inputs": ["memory.session_history", "signals.rest_days_last_7d"]
+        },
+        "description": "Accumulated training load vs recovery"
+      },
+      "novelty_balance": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "computed",
+          "formula": "unique_session_types / max(total_sessions_7d, 1)",
+          "inputs": ["memory.session_history"]
+        },
+        "description": "Variety vs repetition in recent sessions"
+      },
+      "completion_proximity": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.0,
+        "derivation": {
+          "source": "signal",
+          "formula": "signals.current_program_progress_pct / 100.0",
+          "inputs": ["signals.current_program_progress_pct"]
+        },
+        "description": "Progress through current program"
+      }
+    }
+  },
+  "actions": {
+    "action_source": "dynamic",
+    "action_types": [
+      {
+        "type_id": "workout_session",
+        "display_name": "Workout Session",
+        "description": "A scheduled workout session",
+        "attributes": {
+          "intensity": {
+            "type": "enum",
+            "values": ["low", "moderate", "high"],
+            "required": true
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "range": { "min": 5, "max": 120 },
+            "required": true
+          },
+          "session_type": {
+            "type": "string",
+            "required": true
+          },
+          "equipment_required": {
+            "type": "array",
+            "required": false
+          }
+        },
+        "skill_mapping": "fitness_session_rationale@1.0.0"
+      },
+      {
+        "type_id": "rest_day",
+        "display_name": "Rest Day",
+        "description": "Recommended rest day",
+        "attributes": {
+          "recovery_type": {
+            "type": "enum",
+            "values": ["active", "passive"],
+            "required": false
+          }
+        },
+        "skill_mapping": "rest_day_messaging@1.0.0"
+      }
+    ]
+  },
+  "guardrails": {
+    "rules": [
+      {
+        "rule_id": "GR-REST-MIN",
+        "description": "At least 1 rest day per 7-day window",
+        "condition": "signals.rest_days_last_7d < 1",
+        "effect": "force_action",
+        "target": "rest_day",
+        "priority": 1
+      },
+      {
+        "rule_id": "GR-INTENSITY-CAP",
+        "description": "No more than 2 high-intensity sessions consecutively",
+        "condition": "memory.consecutive_high_intensity >= 2",
+        "effect": "block_action",
+        "target": "intensity == 'high'",
+        "priority": 2
+      },
+      {
+        "rule_id": "GR-FATIGUE-OVERRIDE",
+        "description": "Force low intensity if fatigue is critical",
+        "condition": "state.scenario_extensions.fatigue_score > 0.85",
+        "effect": "cap_intensity",
+        "parameters": { "max_intensity": "low" },
+        "priority": 0
+      },
+      {
+        "rule_id": "GR-COOLDOWN",
+        "description": "Minimum 18 hours between session recommendations",
+        "condition": "signals.hours_since_last_recommendation < 18",
+        "effect": "block_action",
+        "target": "workout_session",
+        "priority": 3
+      },
+      {
+        "rule_id": "GR-FATIGUE-MODERATE",
+        "description": "Cap at moderate intensity if fatigue elevated",
+        "condition": "state.scenario_extensions.fatigue_score > 0.65",
+        "effect": "cap_intensity",
+        "parameters": { "max_intensity": "moderate" },
+        "priority": 4
+      }
+    ],
+    "fail_behavior": "reject_action"
+  },
+  "scoring": {
+    "objectives": [
+      {
+        "objective_id": "completion_likelihood",
+        "name": "Completion Likelihood",
+        "weight": 0.35,
+        "formula": "completion_score(state, action)",
+        "inputs": [
+          "state.scenario_extensions.fatigue_score",
+          "state.core.engagement_level",
+          "action.attributes.intensity",
+          "action.attributes.duration_minutes"
+        ],
+        "description": "Probability user completes this session"
+      },
+      {
+        "objective_id": "fatigue_management",
+        "name": "Fatigue Management",
+        "weight": 0.25,
+        "formula": "fatigue_safety_score(state.scenario_extensions.fatigue_score, action.attributes.intensity)",
+        "inputs": [
+          "state.scenario_extensions.fatigue_score",
+          "action.attributes.intensity"
+        ],
+        "description": "Avoid overtraining and injury risk"
+      },
+      {
+        "objective_id": "engagement_momentum",
+        "name": "Engagement Momentum",
+        "weight": 0.25,
+        "formula": "momentum_score(state.core.engagement_level, state.core.churn_risk, action.attributes.intensity)",
+        "inputs": [
+          "state.core.engagement_level",
+          "state.core.churn_risk",
+          "action.attributes.intensity"
+        ],
+        "description": "Maintain or build engagement streak"
+      },
+      {
+        "objective_id": "novelty_optimization",
+        "name": "Novelty Optimization",
+        "weight": 0.15,
+        "formula": "novelty_score(state.scenario_extensions.novelty_balance, action.attributes.session_type, memory.session_history)",
+        "inputs": [
+          "state.scenario_extensions.novelty_balance",
+          "action.attributes.session_type",
+          "memory.session_history"
+        ],
+        "description": "Balance variety vs familiarity"
+      }
+    ],
+    "execution_risk": {
+      "enabled": true,
+      "weight": 0.10,
+      "factors": [
+        {
+          "factor": "skill_unavailable",
+          "condition": "!state.execution_capabilities.llm_available && action.skill_mapping.type == 'llm'",
+          "penalty": 0.3
+        },
+        {
+          "factor": "high_latency_mode",
+          "condition": "state.execution_capabilities.max_latency_ms < 200",
+          "penalty": 0.1
+        }
+      ]
+    },
+    "tie_breaking": ["intensity_asc", "duration_asc", "action_id_asc"]
+  },
+  "skills": {
+    "available_skills": [
+      { "skill_id": "fitness_session_rationale", "version": "1.0.0" },
+      { "skill_id": "rest_day_messaging", "version": "1.0.0" },
+      { "skill_id": "decision_rationale_template", "version": "1.0.0" }
+    ],
+    "action_mappings": {
+      "workout_session": {
+        "primary_skill": "fitness_session_rationale@1.0.0",
+        "fallback_skill": "decision_rationale_template@1.0.0"
+      },
+      "rest_day": {
+        "primary_skill": "rest_day_messaging@1.0.0",
+        "fallback_skill": "decision_rationale_template@1.0.0"
+      }
+    },
+    "default_fallback": "decision_rationale_template@1.0.0"
+  },
+  "execution": {
+    "default_mode": "skill_enhanced",
+    "allow_mode_override": true,
+    "timeouts": {
+      "total_decision_ms": 500,
+      "skill_execution_ms": 300,
+      "state_derivation_ms": 50
+    },
+    "retry_policy": {
+      "max_retries": 0,
+      "retry_on": []
+    }
+  }
+}

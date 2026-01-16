@@ -1,0 +1,120 @@
+{
+  "skill_id": "decision_rationale_template",
+  "version": "1.0.0",
+  "type": "deterministic",
+  "description": "Generates human-readable rationale using parameterized templates. This is the universal fallback skill.",
+  
+  "sec": {
+    "sec_version": "1.0.0",
+    
+    "input_schema": {
+      "$ref": "standard_input_envelope"
+    },
+    
+    "output_schema": {
+      "type": "object",
+      "required": ["payload", "metadata"],
+      "properties": {
+        "payload": {
+          "type": "object",
+          "required": ["rationale"],
+          "properties": {
+            "rationale": {
+              "type": "string",
+              "maxLength": 200,
+              "minLength": 10
+            },
+            "display_title": {
+              "type": "string",
+              "maxLength": 50
+            },
+            "display_parameters": {
+              "type": "object",
+              "properties": {
+                "template_used": { "type": "string" },
+                "personalization_level": { 
+                  "type": "string",
+                  "enum": ["none", "low", "medium"]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "metadata": {
+          "type": "object",
+          "required": ["skill_id", "skill_version", "generated_at"],
+          "properties": {
+            "skill_id": { "type": "string" },
+            "skill_version": { "type": "string" },
+            "generated_at": { "type": "string", "format": "date-time" },
+            "token_count": { "type": "integer", "const": 0 },
+            "generation_ms": { "type": "integer" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    
+    "invariants": {
+      "universal": ["INV-001", "INV-002", "INV-003", "INV-004", "INV-005", "INV-006"],
+      "skill_specific": []
+    },
+    
+    "prohibitions": {
+      "universal": true,
+      "skill_specific": []
+    },
+    
+    "timeout": {
+      "default_ms": 20,
+      "hard_limit_ms": 50
+    },
+    
+    "fallback": null
+  },
+  
+  "templates": {
+    "default": {
+      "template": "We selected {action_name} based on your recent activity and preferences.",
+      "inputs": ["action_metadata.name"]
+    },
+    "high_engagement": {
+      "condition": "state.core.engagement_level > 0.7",
+      "template": "Great momentum! {action_name} will help you maintain your progress.",
+      "inputs": ["action_metadata.name"]
+    },
+    "low_engagement": {
+      "condition": "state.core.engagement_level < 0.3",
+      "template": "Welcome back! {action_name} is a great way to get started again.",
+      "inputs": ["action_metadata.name"]
+    },
+    "high_churn_risk": {
+      "condition": "state.core.churn_risk > 0.6",
+      "template": "{action_name} is designed to fit your schedule today.",
+      "inputs": ["action_metadata.name"]
+    },
+    "new_user": {
+      "condition": "state.core.interaction_depth < 5",
+      "template": "Welcome! {action_name} is a great way to get started.",
+      "inputs": ["action_metadata.name"]
+    }
+  },
+  
+  "template_selection_logic": {
+    "priority_order": [
+      "high_churn_risk",
+      "new_user",
+      "low_engagement",
+      "high_engagement",
+      "default"
+    ],
+    "description": "Templates are evaluated in priority order. First matching condition wins. Default always matches."
+  },
+  
+  "implementation": {
+    "language": "typescript",
+    "entry_point": "execute",
+    "dependencies": []
+  }
+}

@@ -1,0 +1,294 @@
+{
+  "scenario_id": "notification-timing",
+  "version": "1.0.0",
+  "metadata": {
+    "name": "Notification Timing",
+    "description": "Decides when to send notifications to maximize engagement without causing fatigue",
+    "domain": "notification",
+    "created_at": "2026-01-16T00:00:00Z",
+    "author": "ADE Team",
+    "tags": ["notification", "timing", "engagement", "fatigue"]
+  },
+  "state_schema": {
+    "core_dimensions": {
+      "engagement_level": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "computed",
+          "formula": "signals.interactions_7d / max(signals.notifications_sent_7d, 1)",
+          "inputs": ["signals.interactions_7d", "signals.notifications_sent_7d"]
+        },
+        "description": "Notification interaction rate over 7 days"
+      },
+      "recency_score": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "computed",
+          "formula": "1.0 - min(signals.hours_since_last_interaction / 168, 1.0)",
+          "inputs": ["signals.hours_since_last_interaction"]
+        },
+        "description": "How recently user interacted with a notification"
+      },
+      "interaction_depth": {
+        "type": "integer",
+        "range": { "min": 0 },
+        "default": 0,
+        "derivation": {
+          "source": "signal",
+          "formula": "signals.total_interactions",
+          "inputs": ["signals.total_interactions"]
+        },
+        "description": "Total notification interactions since signup"
+      },
+      "depth_factor": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 1.0,
+        "derivation": {
+          "source": "computed",
+          "formula": "if_else(interaction_depth < 10, 1.0, if_else(interaction_depth < 50, 0.5, 0.2))",
+          "inputs": ["interaction_depth"]
+        },
+        "description": "Normalized experience depth factor (higher = less experienced, higher churn risk)"
+      },
+      "daily_notification_count": {
+        "type": "integer",
+        "range": { "min": 0 },
+        "default": 0,
+        "derivation": {
+          "source": "signal",
+          "formula": "signals.notifications_sent_24h",
+          "inputs": ["signals.notifications_sent_24h"]
+        },
+        "description": "Notifications sent in last 24 hours"
+      },
+      "hours_since_last_notification": {
+        "type": "float",
+        "range": { "min": 0.0 },
+        "default": 24.0,
+        "derivation": {
+          "source": "signal",
+          "formula": "signals.hours_since_last_notification",
+          "inputs": ["signals.hours_since_last_notification"]
+        },
+        "description": "Hours since last notification was sent"
+      },
+      "local_hour": {
+        "type": "integer",
+        "range": { "min": 0, "max": 23 },
+        "default": 12,
+        "derivation": {
+          "source": "context",
+          "formula": "context.local_hour",
+          "inputs": ["context.local_hour"]
+        },
+        "description": "Current hour in user's local timezone (0-23)"
+      },
+      "churn_risk": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "computed",
+          "formula": "(1.0 - engagement_level) * 0.50 + (1.0 - recency_score) * 0.30 + depth_factor * 0.20",
+          "inputs": ["engagement_level", "recency_score", "depth_factor"]
+        },
+        "description": "Composite dropout likelihood"
+      }
+    },
+    "scenario_dimensions": {
+      "notification_fatigue": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.0,
+        "derivation": {
+          "source": "computed",
+          "formula": "min(signals.notifications_sent_24h / 5.0, 1.0)",
+          "inputs": ["signals.notifications_sent_24h"]
+        },
+        "description": "Recent notification density (higher = more fatigued)"
+      },
+      "optimal_hour_score": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "computed",
+          "formula": "coalesce(memory.hour_success_rate[state.core.local_hour], 0.5)",
+          "inputs": ["state.core.local_hour", "memory.hour_success_rate"]
+        },
+        "description": "Historical success rate for this hour (deterministic lookup from memory)"
+      },
+      "content_relevance": {
+        "type": "float",
+        "range": { "min": 0.0, "max": 1.0 },
+        "default": 0.5,
+        "derivation": {
+          "source": "signal",
+          "formula": "signals.content_relevance_score",
+          "inputs": ["signals.content_relevance_score"]
+        },
+        "description": "Platform-provided relevance score for notification content"
+      }
+    }
+  },
+  "actions": {
+    "action_source": "static",
+    "action_types": [
+      {
+        "type_id": "send_now",
+        "display_name": "Send Immediately",
+        "description": "Send the notification right now",
+        "attributes": {},
+        "skill_mapping": "decision_rationale_template@1.0.0"
+      },
+      {
+        "type_id": "delay_1h",
+        "display_name": "Delay 1 Hour",
+        "description": "Delay notification by 1 hour",
+        "attributes": {
+          "delay_minutes": { "type": "integer", "value": 60 }
+        },
+        "skill_mapping": "decision_rationale_template@1.0.0"
+      },
+      {
+        "type_id": "delay_4h",
+        "display_name": "Delay 4 Hours",
+        "description": "Delay notification by 4 hours",
+        "attributes": {
+          "delay_minutes": { "type": "integer", "value": 240 }
+        },
+        "skill_mapping": "decision_rationale_template@1.0.0"
+      },
+      {
+        "type_id": "delay_next_optimal",
+        "display_name": "Delay to Next Optimal Window",
+        "description": "Delay until user's next optimal engagement window",
+        "attributes": {
+          "delay_type": { "type": "string", "value": "optimal_window" }
+        },
+        "skill_mapping": "decision_rationale_template@1.0.0"
+      },
+      {
+        "type_id": "suppress",
+        "display_name": "Suppress Notification",
+        "description": "Do not send this notification",
+        "attributes": {},
+        "skill_mapping": "decision_rationale_template@1.0.0"
+      }
+    ]
+  },
+  "guardrails": {
+    "rules": [
+      {
+        "rule_id": "GR-MAX-DAILY",
+        "description": "Maximum 3 notifications per day",
+        "condition": "state.core.daily_notification_count >= 3",
+        "effect": "force_action",
+        "target": "suppress",
+        "priority": 0
+      },
+      {
+        "rule_id": "GR-MIN-GAP",
+        "description": "Minimum 2 hours between notifications",
+        "condition": "state.core.hours_since_last_notification < 2",
+        "effect": "block_action",
+        "target": "send_now",
+        "priority": 1
+      },
+      {
+        "rule_id": "GR-QUIET-HOURS",
+        "description": "No notifications during quiet hours (10pm-8am local)",
+        "condition": "state.core.local_hour >= 22 || state.core.local_hour < 8",
+        "effect": "block_action",
+        "target": "send_now",
+        "priority": 2
+      },
+      {
+        "rule_id": "GR-FATIGUE-SUPPRESS",
+        "description": "Suppress if notification fatigue is critical",
+        "condition": "state.scenario_extensions.notification_fatigue > 0.8",
+        "effect": "force_action",
+        "target": "suppress",
+        "priority": 3
+      },
+      {
+        "rule_id": "GR-LOW-RELEVANCE",
+        "description": "Suppress low-relevance notifications when fatigued",
+        "condition": "state.scenario_extensions.content_relevance < 0.3 && state.scenario_extensions.notification_fatigue > 0.5",
+        "effect": "force_action",
+        "target": "suppress",
+        "priority": 4
+      }
+    ],
+    "fail_behavior": "reject_action"
+  },
+  "scoring": {
+    "objectives": [
+      {
+        "objective_id": "engagement_potential",
+        "name": "Engagement Potential",
+        "weight": 0.40,
+        "formula": "state.core.engagement_level * (1.0 - state.scenario_extensions.notification_fatigue) * state.scenario_extensions.content_relevance",
+        "inputs": [
+          "state.core.engagement_level",
+          "state.scenario_extensions.notification_fatigue",
+          "state.scenario_extensions.content_relevance"
+        ],
+        "description": "Likelihood of positive engagement with this notification"
+      },
+      {
+        "objective_id": "timing_quality",
+        "name": "Timing Quality",
+        "weight": 0.35,
+        "formula": "timing_score(action, state.scenario_extensions.optimal_hour_score)",
+        "inputs": [
+          "action.type_id",
+          "state.scenario_extensions.optimal_hour_score"
+        ],
+        "description": "How good is this timing decision"
+      },
+      {
+        "objective_id": "fatigue_preservation",
+        "name": "Fatigue Preservation",
+        "weight": 0.25,
+        "formula": "fatigue_preservation_score(action, state.scenario_extensions.notification_fatigue)",
+        "inputs": [
+          "action.type_id",
+          "state.scenario_extensions.notification_fatigue"
+        ],
+        "description": "Protect user from notification overload"
+      }
+    ],
+    "execution_risk": {
+      "enabled": true,
+      "weight": 0.05,
+      "factors": []
+    },
+    "tie_breaking": ["action_id_asc"]
+  },
+  "skills": {
+    "available_skills": [
+      { "skill_id": "decision_rationale_template", "version": "1.0.0" }
+    ],
+    "action_mappings": {},
+    "default_fallback": "decision_rationale_template@1.0.0"
+  },
+  "execution": {
+    "default_mode": "deterministic_only",
+    "allow_mode_override": true,
+    "timeouts": {
+      "total_decision_ms": 100,
+      "skill_execution_ms": 20,
+      "state_derivation_ms": 30
+    },
+    "retry_policy": {
+      "max_retries": 0,
+      "retry_on": []
+    }
+  }
+}
