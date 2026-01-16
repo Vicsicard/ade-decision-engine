@@ -42,3 +42,5 @@ export {
   HourSuccessRateLearner,
   createHourSuccessRateLearner,
 } from './learners/hour-success-rate.js';
+export { ActionEffectivenessLearner, createActionEffectivenessLearner } from './learners/action-effectiveness.js';
+export type { ActionEffectivenessData } from './learners/action-effectiveness.js';
