@@ -4,8 +4,9 @@
 
 ADE is not an AI that decides—it is a system that decides about AI, safely, deterministically, and audibly.
 
-[![npm version](https://img.shields.io/npm/v/ade-decision-engine.svg)](https://www.npmjs.com/package/ade-decision-engine)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+> **License Notice**
+> This project is source-available under the [Business Source License 1.1](engine/LICENSE).
+> Commercial use requires a separate agreement. See [COMMERCIAL.md](COMMERCIAL.md) for details.
 
 ## Install
 
@@ -154,7 +155,7 @@ Deterministic mode is always available. Skill-enhanced mode falls back to determ
 
 ## License
 
-MIT
+Business Source License 1.1 — See [LICENSE](engine/LICENSE) and [COMMERCIAL.md](COMMERCIAL.md)
 
 ## Philosophy
 
