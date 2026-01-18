@@ -4,6 +4,8 @@
 
 ADE is not an AI that decides—it is a system that decides about AI, safely, deterministically, and audibly.
 
+ADE implements the **Deterministic Decision Runtime (DDR)** model for governed decision control.
+
 > **License Notice**
 > This project is source-available under the [Business Source License 1.1](engine/LICENSE).
 > Commercial use requires a separate agreement. See [COMMERCIAL.md](COMMERCIAL.md) for details.
@@ -13,6 +15,8 @@ ADE is not an AI that decides—it is a system that decides about AI, safely, de
 ```bash
 npm install ade-decision-engine
 ```
+
+> **Note:** ADE is licensed under BSL 1.1. Installation is permitted for evaluation and non-production use. Commercial deployment requires a separate agreement.
 
 ## What ADE Is
 
