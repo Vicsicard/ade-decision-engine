@@ -422,6 +422,11 @@ export interface AuditTrace {
   scenario_id: string;
   scenario_version: string;
   scenario_hash: string;
+  
+  // Engine version binding for audit-grade reproducibility (Option A)
+  // Decisions are cryptographically bound to the engine that executed them
+  engine_version: string;
+  
   timestamp: string;
   request: DecisionRequest;
   stages: StageTraces;

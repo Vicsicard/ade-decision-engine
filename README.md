@@ -93,7 +93,7 @@ console.log(response.audit.replay_token);         // 'rpl_...'
 | 5 | Resolve Skills | Map action to skill |
 | 6 | Execute Skill | Generate rationale |
 | 7 | Validate Output | Enforce authority boundaries |
-| 8 | Fallback | Safe degradation if needed |
+| 8 | Deterministic Degradation | Governed fallback if skill fails |
 | 9 | Audit | Store trace, generate replay token |
 
 ## Authority Separation

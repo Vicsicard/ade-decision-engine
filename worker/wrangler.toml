@@ -1,0 +1,58 @@
+# DDR Runtime Worker
+# Phase 5.2: Production Deployment
+#
+# This Worker hosts the DDR decision runtime ONLY.
+# DCG (contract authoring) stays in Control Plane.
+
+name = "ddr-runtime"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# KV Namespace: Short-lived session state (optional)
+[[kv_namespaces]]
+binding = "SESSION_STATE"
+id = "6d7f489576934934a95db7707d4faed3"
+preview_id = "59fb6d8742384ba8b287b8ce43b0b0c1"
+
+# D1 Database: Decision events + aggregates
+[[d1_databases]]
+binding = "DB"
+database_name = "ddr-events"
+database_id = "1175ef04-f9ee-475a-8663-7bf1a2e2d744"
+
+# Environment: Development
+[env.dev]
+name = "ddr-runtime-dev"
+vars = { ENVIRONMENT = "development", SCENARIO_ID = "fitness-daily-session", SCENARIO_VERSION = "1.0.0", COHORT_MODE = "control" }
+
+[[env.dev.kv_namespaces]]
+binding = "SESSION_STATE"
+id = "6d7f489576934934a95db7707d4faed3"
+preview_id = "59fb6d8742384ba8b287b8ce43b0b0c1"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "ddr-events"
+database_id = "1175ef04-f9ee-475a-8663-7bf1a2e2d744"
+
+# Environment: Production
+[env.production]
+name = "ddr-runtime-prod"
+vars = { ENVIRONMENT = "production", SCENARIO_ID = "fitness-daily-session", SCENARIO_VERSION = "1.0.0", COHORT_MODE = "treatment" }
+
+[[env.production.kv_namespaces]]
+binding = "SESSION_STATE"
+id = "6d7f489576934934a95db7707d4faed3"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "ddr-events"
+database_id = "1175ef04-f9ee-475a-8663-7bf1a2e2d744"
+
+# Build configuration
+[build]
+command = "npm run build"
+
+# Observability
+[observability]
+enabled = true

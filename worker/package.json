@@ -1,0 +1,23 @@
+{
+  "name": "ddr-runtime-worker",
+  "version": "0.1.0",
+  "description": "DDR Decision Runtime - Cloudflare Worker",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:dev": "wrangler deploy --env dev",
+    "deploy:prod": "wrangler deploy --env production",
+    "build": "tsc",
+    "db:init": "wrangler d1 execute ddr-events --file=./schema.sql",
+    "db:init:dev": "wrangler d1 execute ddr-events --file=./schema.sql --env dev"
+  },
+  "dependencies": {
+    "ade-decision-engine": "^1.1.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240117.0",
+    "typescript": "^5.3.0",
+    "wrangler": "^3.22.0"
+  }
+}

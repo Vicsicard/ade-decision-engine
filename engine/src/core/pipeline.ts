@@ -167,6 +167,10 @@ export class Pipeline {
       scenario_id: scenario.scenario_id,
       scenario_version: scenario.version,
       scenario_hash: scenarioHash,
+      
+      // Engine version binding for audit-grade reproducibility (Option A)
+      engine_version: '1.1.0',
+      
       timestamp: envelope.created_at,
       request,
       stages: stageTraces as StageTraces,
